@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: razzak2007/plateforme-autoecole-frontend
+    container_name: plateforme-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  backend:
+    image: razzak2007/plateforme-autoecole-user-service
+    container_name: plateforme-backend
+    ports:
+      - "3001:3001"
+    environment:
+      SPRING_DATASOURCE_URL_USER_SERVICE: jdbc:postgresql://db:5432/autoecole
+      SPRING_POSTGRES_USERNAME: postgres
+      SPRING_POSTGRES_PASSWORD: postgres
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  db:
+    image: postgres:latest
+    container_name: plateforme-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: autoecole
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+volumes:
+  db-data:
+
+networks:
+  app-network:
+    driver: bridge
