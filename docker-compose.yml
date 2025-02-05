@@ -2,7 +2,8 @@ version: '3.8'
 
 services:
   frontend:
-    image: razzak2007/plateforme-autoecole-frontend
+    image: razzak2007/plateforme-autoecole-frontend:latest
+    restart: always
     container_name: plateforme-frontend
     ports:
       - "4200:4200"
@@ -12,7 +13,8 @@ services:
       - app-network
 
   backend:
-    image: razzak2007/plateforme-autoecole-user-service
+    image: razzak2007/plateforme-autoecole-user-service:latest
+    restart: always
     container_name: plateforme-backend
     ports:
       - "3001:3001"
