@@ -12,21 +12,58 @@ services:
     networks:
       - app-network
 
-  backend:
+  user-service:
     image: razzak2007/plateforme-autoecole-user-service:latest
     restart: always
-    container_name: plateforme-backend
+    container_name: plateforme-user-service
     ports:
       - "3001:3001"
     environment:
       SPRING_DATASOURCE_URL_USER_SERVICE: jdbc:postgresql://db:5432/autoecole
       SPRING_POSTGRES_USERNAME: postgres
       SPRING_POSTGRES_PASSWORD: postgres
+      SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_APPLICATION_NAME: user-service
     depends_on:
+      config-server:
+        condition: service_started
       db:
         condition: service_healthy
     networks:
       - app-network
+
+  config-server:
+    image: razzak2007/plateforme-autoecole-config-server:latest
+    restart: always
+    container_name: plateforme-config-server
+    ports:
+      - "8071:8071"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: plateforme-rabbitmq
+    ports:
+      - "5672:5672"      # Port pour les connexions des applications
+      - "15672:15672"    # Interface de gestion (UI)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
 
   db:
     image: postgres:latest
