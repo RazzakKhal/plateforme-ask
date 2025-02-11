@@ -27,7 +27,7 @@ services:
       SPRING_POSTGRES_USERNAME: postgres
       SPRING_POSTGRES_PASSWORD: postgres
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: prod
       SPRING_APPLICATION_NAME: user-service
     depends_on:
       config-server:
