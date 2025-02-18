@@ -17,5 +17,6 @@
     <modules>
         <module>user-service</module>
         <module>plateforme-config-server</module>
+        <module>plateforme-eureka-server</module>
     </modules>
 </project>

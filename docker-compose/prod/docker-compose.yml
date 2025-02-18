@@ -29,6 +29,8 @@ services:
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
       SPRING_PROFILES_ACTIVE: prod
       SPRING_APPLICATION_NAME: user-service
+      SPRING_RABBITMQ_HOST: plateforme-rabbitmq
+
     depends_on:
       config-server:
         condition: service_healthy
