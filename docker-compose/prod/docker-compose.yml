@@ -75,6 +75,7 @@ services:
       SPRING_APPLICATION_NAME: gateway
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
+      USER_SERVICE_URL: http://user-service:3001
 
     networks:
       - app-network
