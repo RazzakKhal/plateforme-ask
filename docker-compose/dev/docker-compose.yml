@@ -12,7 +12,43 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1400m
+          memory: 700m
+    networks:
+      - app-network
+
+  formula-service:
+    image: razzak2007/plateforme-autoecole-formula-service:latest
+    restart: always
+    container_name: plateforme-formula-service
+    ports:
+      - "3002:3002"
+    healthcheck:
+      test: "curl --fail --silent localhost:3001/actuator/health/readiness | grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    environment:
+      SPRING_DATASOURCE_URL_FORMULA_SERVICE: jdbc:postgresql://db-formula:5432/autoecole-formula
+      SPRING_POSTGRES_USERNAME: postgres
+      SPRING_POSTGRES_PASSWORD: postgres
+      SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_APPLICATION_NAME: formula-service
+      SPRING_RABBITMQ_HOST: plateforme-rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
+
+    depends_on:
+      config-server:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 700m
     networks:
       - app-network
 
@@ -22,22 +58,62 @@ services:
     container_name: plateforme-user-service
     ports:
       - "3001:3001"
+    healthcheck:
+      test: "curl --fail --silent localhost:3001/actuator/health/readiness | grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     environment:
-      SPRING_DATASOURCE_URL_USER_SERVICE: jdbc:postgresql://db:5432/autoecole
+      SPRING_DATASOURCE_URL_USER_SERVICE: jdbc:postgresql://db:5432/autoecole-user
       SPRING_POSTGRES_USERNAME: postgres
       SPRING_POSTGRES_PASSWORD: postgres
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
       SPRING_PROFILES_ACTIVE: dev
       SPRING_APPLICATION_NAME: user-service
+      SPRING_RABBITMQ_HOST: plateforme-rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
+
     depends_on:
       config-server:
         condition: service_healthy
       db:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
     deploy:
       resources:
         limits:
-          memory: 1400m
+          memory: 700m
+    networks:
+      - app-network
+
+  gateway:
+    image: razzak2007/plateforme-autoecole-gateway:latest
+    restart: always
+    container_name: gateway
+    ports:
+      - "8072:8072"
+    healthcheck:
+      test: "curl --fail --silent localhost:8072/actuator/health/readiness | grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    depends_on:
+      user-service:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+    environment:
+      SPRING_APPLICATION_NAME: gateway
+      SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
+      USER_SERVICE_URL: http://user-service:3001
+      WEB_URL: http://frontend:4200
+
     networks:
       - app-network
 
@@ -59,12 +135,37 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1400m
+          memory: 700m
     environment:
       PRIVATE_SSH_KEY: "${PRIVATE_SSH_KEY}"
       SPRING_CLOUD_CONFIG_SERVER_GIT_IGNORE_LOCAL_SSH_SETTINGS: true
       SPRING_CLOUD_CONFIG_SERVER_GIT_STRICT_HOST_KEY_CHECKING: false
       SPRING_RABBITMQ_HOST: plateforme-rabbitmq
+
+    networks:
+      - app-network
+
+  eureka-server:
+    image: razzak2007/plateforme-autoecole-eureka-server:latest
+    restart: always
+    container_name: plateforme-eureka-server
+    ports:
+      - "8070:8070"
+    healthcheck:
+      test: "curl --fail --silent localhost:8070/actuator/health/readiness | grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    depends_on:
+      config-server:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+    environment:
+      SPRING_APPLICATION_NAME: eureka-server
 
     networks:
       - app-network
@@ -95,7 +196,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: autoecole
+      POSTGRES_DB: autoecole-user
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 10s
@@ -106,8 +207,28 @@ services:
     networks:
       - app-network
 
+  db-formula:
+    image: postgres:latest
+    container_name: plateforme-db2
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: autoecole-formula
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db-formula-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
 volumes:
   db-data:
+  db-formula-data:
 
 networks:
   app-network:
