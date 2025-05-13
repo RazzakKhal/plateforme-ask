@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: plateforme-rabbitmq-local
+    ports:
+      - "5672:5672"      # Port pour les connexions des applications
+      - "15672:15672"    # Interface de gestion (UI)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: [ "CMD", "rabbitmqctl", "status" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+
+  db:
+    image: postgres:latest
+    container_name: plateforme-db-local
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: autoecole-user
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db-data-local:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  db-formula:
+    image: postgres:latest
+    container_name: plateforme-db2-local
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: autoecole-formula
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db-formula-data-local:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+volumes:
+  db-data-local:
+  db-formula-data-local:
+
+networks:
+  app-network:
+    driver: bridge

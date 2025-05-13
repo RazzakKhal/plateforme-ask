@@ -9,6 +9,7 @@
         <outputRelativeToContentRoot value="true" />
         <module name="eureka-service" />
         <module name="user-service" />
+        <module name="payment-service" />
         <module name="formula-service" />
         <module name="configServer" />
         <module name="gateway" />
@@ -21,6 +22,7 @@
       <module name="eureka-service" options="-parameters" />
       <module name="formula-service" options="-parameters" />
       <module name="gateway" options="-parameters" />
+      <module name="payment-service" options="-parameters" />
       <module name="user-service" options="-parameters" />
     </option>
   </component>

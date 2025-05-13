@@ -20,5 +20,6 @@
         <module>plateforme-config-server</module>
         <module>plateforme-eureka-server</module>
         <module>gateway</module>
+        <module>plateforme-payment-service</module>
     </modules>
 </project>
