@@ -143,7 +143,8 @@ services:
     environment:
       SPRING_APPLICATION_NAME: gateway
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
+      EUREKA_HOST: eureka-server
+      EUREKA_PORT: 8070
       USER_SERVICE_URL: http://user-service:3001
       WEB_URL: http://frontend:4200
 
