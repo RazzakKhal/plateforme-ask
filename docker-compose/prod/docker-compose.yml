@@ -13,6 +13,7 @@ services:
       resources:
         limits:
           memory: 700m
+          cpus: '0.3'
     networks:
       - app-network
       - web-proxy
@@ -25,9 +26,9 @@ services:
       - "8072:8072"
     healthcheck:
       test: "curl --fail --silent localhost:8072/actuator/health/readiness | grep UP || exit 1"
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 15s
+      timeout: 30s
+      retries: 20
       start_period: 10s
     depends_on:
       user-service:
@@ -36,6 +37,8 @@ services:
       resources:
         limits:
           memory: 700m
+          cpus: '0.3'
+
     environment:
       SPRING_APPLICATION_NAME: gateway
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
@@ -52,8 +55,15 @@ services:
     container_name: plateforme-nginx
     ports:
       - "80:80"
+      - "443:443"
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+          cpus: '0.2'
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./certs/archive/book-n-drive.fr:/etc/letsencrypt/live/book-n-drive.fr
     depends_on:
       - frontend
       - gateway
@@ -69,9 +79,9 @@ services:
       - "3002:3002"
     healthcheck:
       test: "curl --fail --silent localhost:3001/actuator/health/readiness | grep UP || exit 1"
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 15s
+      timeout: 30s
+      retries: 20
       start_period: 10s
     environment:
       SPRING_DATASOURCE_URL_FORMULA_SERVICE: jdbc:postgresql://db-formula:5432/autoecole-formula
@@ -93,6 +103,7 @@ services:
       resources:
         limits:
           memory: 700m
+          cpus: '0.3'
     networks:
       - app-network
 
@@ -104,13 +115,13 @@ services:
       - "3003:3003"
     healthcheck:
       test: "curl --fail --silent localhost:3003/actuator/health/readiness | grep UP || exit 1"
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 15s
+      timeout: 30s
+      retries: 20
       start_period: 10s
     environment:
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
-      SPRING_DATASOURCE_URL_USER_SERVICE: jdbc:postgresql://db-payment:5432/autoecole-payment
+      SPRING_DATASOURCE_URL_PAYMENT_SERVICE: jdbc:postgresql://db-payment:5432/autoecole-payment
       SPRING_POSTGRES_USERNAME: postgres
       SPRING_POSTGRES_PASSWORD: postgres
       SPRING_PROFILES_ACTIVE: prod
@@ -120,7 +131,7 @@ services:
     depends_on:
       config-server:
         condition: service_healthy
-      db:
+      db-payment:
         condition: service_healthy
       eureka-server:
         condition: service_healthy
@@ -128,6 +139,7 @@ services:
       resources:
         limits:
           memory: 700m
+          cpus: '0.3'
     networks:
       - app-network
 
@@ -139,9 +151,9 @@ services:
       - "3001:3001"
     healthcheck:
       test: "curl --fail --silent localhost:3001/actuator/health/readiness | grep UP || exit 1"
-      interval: 10s
-      timeout: 5s
-      retries: 10
+      interval: 15s
+      timeout: 30s
+      retries: 20
       start_period: 10s
     environment:
       SPRING_DATASOURCE_URL_USER_SERVICE: jdbc:postgresql://db:5432/autoecole-user
@@ -163,6 +175,7 @@ services:
       resources:
         limits:
           memory: 700m
+          cpus: '0.3'
     networks:
       - app-network
 
@@ -174,8 +187,8 @@ services:
       - "8071:8071"
     healthcheck:
       test: "curl --fail --silent localhost:8071/actuator/health/readiness | grep UP || exit 1"
-      interval: 10s
-      timeout: 5s
+      interval: 15s
+      timeout: 30s
       retries: 10
       start_period: 10s
     depends_on:
@@ -185,6 +198,7 @@ services:
       resources:
         limits:
           memory: 700m
+          cpus: '0.2'
     environment:
       PRIVATE_SSH_KEY: "${PRIVATE_SSH_KEY}"
       SPRING_CLOUD_CONFIG_SERVER_GIT_IGNORE_LOCAL_SSH_SETTINGS: true
@@ -201,8 +215,8 @@ services:
       - "8070:8070"
     healthcheck:
       test: "curl --fail --silent localhost:8070/actuator/health/readiness | grep UP || exit 1"
-      interval: 10s
-      timeout: 5s
+      interval: 15s
+      timeout: 30s
       retries: 10
       start_period: 10s
     depends_on:
@@ -212,12 +226,14 @@ services:
       resources:
         limits:
           memory: 700m
+          cpus: '0.2'
     environment:
       SPRING_APPLICATION_NAME: eureka-server
     networks:
       - app-network
 
   rabbitmq:
+    user: "999"
     image: rabbitmq:3-management
     container_name: plateforme-rabbitmq
     ports:
@@ -228,9 +244,15 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     healthcheck:
       test: [ "CMD", "rabbitmqctl", "status" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 15s
+      timeout: 30s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+          cpus: '0.3'
     networks:
       - app-network
 
@@ -248,6 +270,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 400m
+          cpus: '0.2'
     volumes:
       - db-data:/var/lib/postgresql/data
     networks:
@@ -267,6 +294,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 400m
+          cpus: '0.2'
     volumes:
       - db-formula-data:/var/lib/postgresql/data
     networks:
@@ -286,6 +318,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 400m
+          cpus: '0.2'
     volumes:
       - db-payment-data:/var/lib/postgresql/data
     networks:
