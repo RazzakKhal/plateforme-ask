@@ -37,8 +37,7 @@ services:
       resources:
         limits:
           memory: 700m
-          cpus: '0.3'
-
+          cpus: '0.5'
     environment:
       SPRING_APPLICATION_NAME: gateway
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
@@ -103,7 +102,7 @@ services:
       resources:
         limits:
           memory: 700m
-          cpus: '0.3'
+          cpus: '0.5'
     networks:
       - app-network
 
@@ -127,6 +126,7 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_APPLICATION_NAME: payment-service
       SPRING_RABBITMQ_HOST: plateforme-rabbitmq
+      SPRING_KAFKA: kafka:29092
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
     depends_on:
       config-server:
@@ -139,7 +139,7 @@ services:
       resources:
         limits:
           memory: 700m
-          cpus: '0.3'
+          cpus: '0.5'
     networks:
       - app-network
 
@@ -163,6 +163,7 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_APPLICATION_NAME: user-service
       SPRING_RABBITMQ_HOST: plateforme-rabbitmq
+      SPRING_KAFKA: kafka:29092
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
     depends_on:
       config-server:
@@ -175,7 +176,7 @@ services:
       resources:
         limits:
           memory: 700m
-          cpus: '0.3'
+          cpus: '0.5'
     networks:
       - app-network
 
@@ -194,11 +195,13 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     deploy:
       resources:
         limits:
           memory: 700m
-          cpus: '0.2'
+          cpus: '0.5'
     environment:
       PRIVATE_SSH_KEY: "${PRIVATE_SSH_KEY}"
       SPRING_CLOUD_CONFIG_SERVER_GIT_IGNORE_LOCAL_SSH_SETTINGS: true
@@ -226,9 +229,57 @@ services:
       resources:
         limits:
           memory: 700m
-          cpus: '0.2'
+          cpus: '0.5'
     environment:
       SPRING_APPLICATION_NAME: eureka-server
+    networks:
+      - app-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.4
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+          cpus: '0.2'
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "22181:2181"
+    healthcheck:
+      test: nc -z localhost 2181
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - app-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.4
+    healthcheck:
+      test: [ "CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+          cpus: '1'
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     networks:
       - app-network
 
@@ -252,7 +303,7 @@ services:
       resources:
         limits:
           memory: 700m
-          cpus: '0.3'
+          cpus: '0.5'
     networks:
       - app-network
 
