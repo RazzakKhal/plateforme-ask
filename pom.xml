@@ -21,5 +21,7 @@
         <module>plateforme-eureka-server</module>
         <module>gateway</module>
         <module>plateforme-payment-service</module>
+        <module>plateforme-notification-service</module>
+
     </modules>
 </project>

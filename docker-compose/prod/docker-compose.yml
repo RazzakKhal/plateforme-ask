@@ -180,6 +180,43 @@ services:
     networks:
       - app-network
 
+  # Autres services existants (inchangés)
+  notification-service:
+    image: razzak2007/plateforme-autoecole-notification-service:latest
+    restart: always
+    container_name: plateforme-notification-service
+    ports:
+      - "3004:3004"
+    healthcheck:
+      test: "curl --fail --silent localhost:3001/actuator/health/readiness | grep UP || exit 1"
+      interval: 15s
+      timeout: 30s
+      retries: 20
+      start_period: 10s
+    environment:
+      SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_APPLICATION_NAME: notification-service
+      SPRING_RABBITMQ_HOST: plateforme-rabbitmq
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
+      SPRING_KAFKA: kafka:29092
+
+    depends_on:
+      config-server:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+          cpus: '0.5'
+    networks:
+      - app-network
+
+
   config-server:
     image: razzak2007/plateforme-autoecole-config-server:latest
     restart: always

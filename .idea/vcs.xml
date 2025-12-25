@@ -6,6 +6,7 @@
     <mapping directory="$PROJECT_DIR$/plateforme-config-server" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/plateforme-eureka-server" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/plateforme-formula-service" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/plateforme-notification-service" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/plateforme-payment-service" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/user-service" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/web" vcs="Git" />
