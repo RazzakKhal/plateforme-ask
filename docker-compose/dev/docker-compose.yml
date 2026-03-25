@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   frontend:
     image: razzak2007/plateforme-autoecole-frontend:latest
@@ -8,11 +6,43 @@ services:
     ports:
       - "4200:4200"
     depends_on:
-      - user-service
+      user-service:
+        condition: service_healthy
     deploy:
       resources:
         limits:
           memory: 700m
+    networks:
+      - app-network
+
+  gateway:
+    image: razzak2007/plateforme-autoecole-gateway:latest
+    restart: always
+    container_name: gateway
+    ports:
+      - "8072:8072"
+    healthcheck:
+      test: "curl --fail --silent localhost:8072/actuator/health/readiness | grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    depends_on:
+      user-service:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+    environment:
+      SPRING_APPLICATION_NAME: gateway
+      SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
+      SPRING_PROFILES_ACTIVE: dev
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
+      USER_SERVICE_URL: http://user-service:3001
+      WEB_URL: http://frontend:4200
     networks:
       - app-network
 
@@ -23,7 +53,7 @@ services:
     ports:
       - "3002:3002"
     healthcheck:
-      test: "curl --fail --silent localhost:3001/actuator/health/readiness | grep UP || exit 1"
+      test: "curl --fail --silent localhost:3002/actuator/health/readiness | grep UP || exit 1"
       interval: 10s
       timeout: 5s
       retries: 10
@@ -37,13 +67,14 @@ services:
       SPRING_APPLICATION_NAME: formula-service
       SPRING_RABBITMQ_HOST: plateforme-rabbitmq
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
-
     depends_on:
       config-server:
         condition: service_healthy
-      db:
+      db-formula:
         condition: service_healthy
       eureka-server:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     deploy:
       resources:
@@ -66,17 +97,24 @@ services:
       start_period: 10s
     environment:
       SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
+      SPRING_DATASOURCE_URL_PAYMENT_SERVICE: jdbc:postgresql://db-payment:5432/autoecole-payment
+      SPRING_POSTGRES_USERNAME: postgres
+      SPRING_POSTGRES_PASSWORD: postgres
       SPRING_PROFILES_ACTIVE: dev
       SPRING_APPLICATION_NAME: payment-service
       SPRING_RABBITMQ_HOST: plateforme-rabbitmq
+      SPRING_KAFKA: kafka:9092
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
-
     depends_on:
       config-server:
         condition: service_healthy
-      db:
+      db-payment:
         condition: service_healthy
       eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     deploy:
       resources:
@@ -105,14 +143,18 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       SPRING_APPLICATION_NAME: user-service
       SPRING_RABBITMQ_HOST: plateforme-rabbitmq
+      SPRING_KAFKA: kafka:9092
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
-
     depends_on:
       config-server:
         condition: service_healthy
       db:
         condition: service_healthy
       eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     deploy:
       resources:
@@ -121,32 +163,38 @@ services:
     networks:
       - app-network
 
-  gateway:
-    image: razzak2007/plateforme-autoecole-gateway:latest
+  notification-service:
+    image: razzak2007/plateforme-autoecole-notification-service:latest
     restart: always
-    container_name: gateway
+    container_name: plateforme-notification-service
     ports:
-      - "8072:8072"
+      - "3004:3004"
     healthcheck:
-      test: "curl --fail --silent localhost:8072/actuator/health/readiness | grep UP || exit 1"
+      test: "curl --fail --silent localhost:3004/actuator/health/readiness | grep UP || exit 1"
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 10s
+    environment:
+      SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_APPLICATION_NAME: notification-service
+      SPRING_RABBITMQ_HOST: plateforme-rabbitmq
+      SPRING_KAFKA: kafka:9092
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
     depends_on:
-      user-service:
+      config-server:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     deploy:
       resources:
         limits:
           memory: 700m
-    environment:
-      SPRING_APPLICATION_NAME: gateway
-      SPRING_CONFIG_IMPORT: "configserver:http://config-server:8071/"
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
-      USER_SERVICE_URL: http://user-service:3001
-      WEB_URL: http://frontend:4200
-
     networks:
       - app-network
 
@@ -165,6 +213,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -174,7 +224,6 @@ services:
       SPRING_CLOUD_CONFIG_SERVER_GIT_IGNORE_LOCAL_SSH_SETTINGS: true
       SPRING_CLOUD_CONFIG_SERVER_GIT_STRICT_HOST_KEY_CHECKING: false
       SPRING_RABBITMQ_HOST: plateforme-rabbitmq
-
     networks:
       - app-network
 
@@ -199,7 +248,56 @@ services:
           memory: 700m
     environment:
       SPRING_APPLICATION_NAME: eureka-server
+    networks:
+      - app-network
 
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.4
+    container_name: zookeeper
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "22181:2181"
+    healthcheck:
+      test: nc -z localhost 2181
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - app-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.4
+    container_name: kafka
+    restart: always
+    healthcheck:
+      test: [ "CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 700m
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     networks:
       - app-network
 
@@ -207,8 +305,8 @@ services:
     image: rabbitmq:3-management
     container_name: plateforme-rabbitmq
     ports:
-      - "5672:5672"      # Port pour les connexions des applications
-      - "15672:15672"    # Interface de gestion (UI)
+      - "5672:5672"
+      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -220,7 +318,6 @@ services:
     networks:
       - app-network
 
-
   db:
     image: postgres:latest
     container_name: plateforme-db
@@ -231,7 +328,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: autoecole-user
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -259,9 +356,29 @@ services:
     networks:
       - app-network
 
+  db-payment:
+    image: postgres:latest
+    container_name: plateforme-db3
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: autoecole-payment
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - db-payment-data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
 volumes:
   db-data:
   db-formula-data:
+  db-payment-data:
 
 networks:
   app-network:

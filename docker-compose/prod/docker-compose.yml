@@ -49,6 +49,20 @@ services:
       - app-network
       - web-proxy
 
+    # certbot:
+    #   image: certbot/certbot
+    #   container_name: certbot
+    #   volumes:
+    #     - ./certbot/www:/var/www/certbot
+    #     - ./certbot/conf:/etc/letsencrypt
+    #   entrypoint: >
+    #     sh -c "certbot certonly --webroot --webroot-path=/var/www/certbot
+    #     --email khalfallah.razzak@gmail.com --agree-tos --no-eff-email
+    #     -d ask-plateforme.fr -d www.ask-plateforme.fr"
+    #   networks:
+    #     - web-proxy
+
+
   nginx:
     image: nginx:latest
     container_name: plateforme-nginx
@@ -62,10 +76,8 @@ services:
           cpus: '0.2'
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./certs/archive/book-n-drive.fr:/etc/letsencrypt/live/book-n-drive.fr
-    depends_on:
-      - frontend
-      - gateway
+      - /opt/certbot/www:/var/www/certbot
+      - /opt/certbot/conf:/etc/letsencrypt
     networks:
       - web-proxy
 
@@ -126,7 +138,7 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_APPLICATION_NAME: payment-service
       SPRING_RABBITMQ_HOST: plateforme-rabbitmq
-      SPRING_KAFKA: kafka:29092
+      SPRING_KAFKA: kafka:9092
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
     depends_on:
       config-server:
@@ -163,7 +175,7 @@ services:
       SPRING_PROFILES_ACTIVE: prod
       SPRING_APPLICATION_NAME: user-service
       SPRING_RABBITMQ_HOST: plateforme-rabbitmq
-      SPRING_KAFKA: kafka:29092
+      SPRING_KAFKA: kafka:9092
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
     depends_on:
       config-server:
@@ -180,7 +192,6 @@ services:
     networks:
       - app-network
 
-  # Autres services existants (inchangés)
   notification-service:
     image: razzak2007/plateforme-autoecole-notification-service:latest
     restart: always
@@ -199,7 +210,7 @@ services:
       SPRING_APPLICATION_NAME: notification-service
       SPRING_RABBITMQ_HOST: plateforme-rabbitmq
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8070/eureka/
-      SPRING_KAFKA: kafka:29092
+      SPRING_KAFKA: kafka:9092
 
     depends_on:
       config-server:
@@ -215,7 +226,6 @@ services:
           cpus: '0.5'
     networks:
       - app-network
-
 
   config-server:
     image: razzak2007/plateforme-autoecole-config-server:latest
@@ -274,6 +284,8 @@ services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.4
+    container_name: zookeeper
+    restart: always
     deploy:
       resources:
         limits:
@@ -295,6 +307,8 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.4.4
+    container_name: kafka
+    restart: always
     healthcheck:
       test: [ "CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list" ]
       interval: 30s
@@ -313,7 +327,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://kafka:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -354,7 +368,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: autoecole-user
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "postgres"]
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
       interval: 10s
       timeout: 5s
       retries: 5
