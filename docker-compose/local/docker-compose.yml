@@ -57,6 +57,24 @@ services:
     networks:
       - app-network
 
+  akhq:
+    image: tchiotludo/akhq:latest
+    container_name: akhq-local
+    restart: always
+    ports:
+      - "8085:8080"
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            local:
+              properties:
+                bootstrap.servers: "kafka:9092"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - app-network
   db:
     image: postgres:17
     container_name: plateforme-db-local
