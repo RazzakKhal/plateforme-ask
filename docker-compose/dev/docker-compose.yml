@@ -1,4 +1,37 @@
 services:
+  prometheus:
+    image: prom/prometheus:v3.3.1
+    restart: always
+    container_name: plateforme-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    networks:
+      - app-network
+
+  grafana:
+    image: grafana/grafana:12.0.2
+    restart: always
+    container_name: plateforme-grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - app-network
+
   frontend:
     image: razzak2007/plateforme-autoecole-frontend:latest
     restart: always
@@ -376,6 +409,8 @@ services:
       - app-network
 
 volumes:
+  prometheus-data:
+  grafana-data:
   db-data:
   db-formula-data:
   db-payment-data:
