@@ -1,0 +1,98 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+discovery.docker "local" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "docker_logs" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service_name"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    replacement  = "local"
+    target_label = "environment"
+  }
+
+  rule {
+    replacement  = "docker"
+    target_label = "source"
+  }
+}
+
+loki.source.docker "local" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.local.targets
+  relabel_rules = discovery.relabel.docker_logs.rules
+  forward_to    = [loki.write.local.receiver]
+}
+
+local.file_match "spring_apps" {
+  path_targets = [
+    {
+      "__path__"    = "/workspace/logs/gateway.log",
+      "service_name" = "gateway",
+      "environment"  = "local",
+      "source"       = "host-file",
+    },
+    {
+      "__path__"    = "/workspace/logs/user-service.log",
+      "service_name" = "user-service",
+      "environment"  = "local",
+      "source"       = "host-file",
+    },
+    {
+      "__path__"    = "/workspace/logs/formula-service.log",
+      "service_name" = "formula-service",
+      "environment"  = "local",
+      "source"       = "host-file",
+    },
+    {
+      "__path__"    = "/workspace/logs/payment-service.log",
+      "service_name" = "payment-service",
+      "environment"  = "local",
+      "source"       = "host-file",
+    },
+    {
+      "__path__"    = "/workspace/logs/notification-service.log",
+      "service_name" = "notification-service",
+      "environment"  = "local",
+      "source"       = "host-file",
+    },
+    {
+      "__path__"    = "/workspace/logs/config-server.log",
+      "service_name" = "config-server",
+      "environment"  = "local",
+      "source"       = "host-file",
+    },
+    {
+      "__path__"    = "/workspace/logs/eureka-server.log",
+      "service_name" = "eureka-server",
+      "environment"  = "local",
+      "source"       = "host-file",
+    },
+  ]
+}
+
+loki.source.file "spring_apps" {
+  targets    = local.file_match.spring_apps.targets
+  forward_to = [loki.write.local.receiver]
+}
