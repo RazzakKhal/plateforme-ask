@@ -1,6 +1,18 @@
-version: '3.8'
-
 services:
+  loki:
+    image: grafana/loki:latest
+    restart: always
+    container_name: plateforme-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki-data:/loki
+    command:
+      - "--config.file=/etc/loki/loki-config.yml"
+    networks:
+      - app-network
+
   prometheus:
     image: prom/prometheus:v3.3.1
     restart: always
@@ -22,6 +34,7 @@ services:
     restart: always
     container_name: plateforme-grafana
     depends_on:
+      - loki
       - prometheus
     ports:
       - "3000:3000"
@@ -31,6 +44,23 @@ services:
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana-data:/var/lib/grafana
+    networks:
+      - app-network
+
+  alloy:
+    image: grafana/alloy:latest
+    restart: always
+    container_name: plateforme-alloy
+    depends_on:
+      - loki
+    command:
+      - "run"
+      - "--storage.path=/var/lib/alloy/data"
+      - "/etc/alloy/config.alloy"
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - app-network
 
@@ -464,6 +494,8 @@ services:
       - app-network
 
 volumes:
+  loki-data:
+  alloy-data:
   prometheus-data:
   grafana-data:
   db-data:
